@@ -9,15 +9,24 @@ import io
 from datetime import datetime
 import pandas as pd
 import os
+import sys
 
 app = FastAPI()
 
-# Montar carpeta estática para archivos multimedia, logos y estilos
-if not os.path.exists("static"):
-    os.makedirs("static")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Configurar ruta base segura para plantillas y recursos tanto en desarrollo como en el .exe compilado
+if getattr(sys, 'frozen', False):
+    base_path = sys._MEIPASS
+else:
+    base_path = os.path.abspath(".")
 
-templates = Jinja2Templates(directory="templates")
+# Montar carpeta estática
+static_dir = os.path.join(base_path, "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+templates_dir = os.path.join(base_path, "templates")
+templates = Jinja2Templates(directory=templates_dir)
 
 def init_db():
     conn = sqlite3.connect("database.db")
@@ -195,7 +204,7 @@ def generar_qr(placa: str):
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
 
-    logo_path = "static/logo.png"
+    logo_path = os.path.join(static_dir, "logo.png")
     if os.path.exists(logo_path):
         try:
             logo = Image.open(logo_path)
@@ -322,3 +331,8 @@ def exportar_excel(fecha_inicio: str = None, fecha_fin: str = None):
     filename = f"reporte_{fecha_inicio or 'inicio'}_al_{fecha_fin or 'fin'}.xlsx"
     headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
     return StreamingResponse(output, headers=headers, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+# Bloque optimizado con host="0.0.0.0" para permitir conexión desde el celular y red local
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
