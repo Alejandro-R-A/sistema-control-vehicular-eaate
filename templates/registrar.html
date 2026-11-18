@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar Conductor y Vehículo - EAATE</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 25px; background: #f0f2f5; color: #333; display: flex; flex-direction: column; min-height: 85vh; }
+        .container { max-width: 650px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); flex: 1; width: 100%; box-sizing: border-box; }
+        .logo-title { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #f0f2f5; padding-bottom: 12px; margin-bottom: 20px; }
+        .logo-img { height: 40px; object-fit: contain; }
+        h2 { color: #1a73e8; margin: 0; font-size: 20px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        label { font-weight: 600; font-size: 13px; color: #555; display: block; margin-top: 12px; }
+        input, select { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        input:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 3px rgba(26,115,232,0.15); }
+        .buttons { display: flex; gap: 10px; margin-top: 25px; }
+        .btn { padding: 12px 20px; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; border: none; text-align: center; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #1a73e8; color: white; flex: 2; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-secondary { background: #6c757d; color: white; flex: 1; }
+        .btn-secondary:hover { background: #5a6268; }
+
+        footer { text-align: center; padding: 20px; margin-top: auto; font-size: 13px; color: #666; border-top: 1px solid #ddd; }
+
+        #alertaFlotante {
+            position: fixed; top: 20px; right: 20px; z-index: 1000;
+            padding: 15px 25px; border-radius: 8px; color: white; font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none;
+        }
+        .bg-success { background: #28a745; }
+        .bg-error { background: #dc3545; }
+    </style>
+</head>
+<body>
+
+    <div id="alertaFlotante"></div>
+
+    <div class="container">
+        <div class="logo-title">
+            <img src="/static/logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+            <h2>📝 Registro de Nuevo Conductor y Vehículo</h2>
+        </div>
+        
+        <form id="formVehiculo">
+            <label>Nombre del Conductor:</label>
+            <input type="text" name="nombre_conductor" required placeholder="Ej: Juan Pérez">
+            
+            <div class="grid-2">
+                <div>
+                    <label>Grado o Cargo:</label>
+                    <input type="text" name="grado_cargo" placeholder="Ej: Sargento">
+                </div>
+                <div>
+                    <label>Número de Licencia:</label>
+                    <input type="text" name="numero_licencia" placeholder="Ej: 1234567LP">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <label>Unidad de Destino:</label>
+                    <input type="text" name="unidad_destino" placeholder="Ej: Logística">
+                </div>
+                <div>
+                    <label>Tipo de Vehículo:</label>
+                    <select name="tipo_vehiculo">
+                        <option value="Auto">Auto</option>
+                        <option value="Camioneta">Camioneta</option>
+                        <option value="Motocicleta">Motocicleta</option>
+                        <option value="Camión">Camión</option>
+                    </select>
+                </div>
+            </div>
+
+            <label>Número de Placa (Identificador QR):</label>
+            <input type="text" name="placa" required style="text-transform: uppercase;" placeholder="Ej: 4501ABC">
+
+            <div class="grid-2">
+                <div>
+                    <label>Marca:</label>
+                    <input type="text" name="marca" placeholder="Ej: Toyota">
+                </div>
+                <div>
+                    <label>Modelo:</label>
+                    <input type="text" name="modelo" placeholder="Ej: Hilux">
+                </div>
+            </div>
+
+            <label>Color:</label>
+            <input type="text" name="color" placeholder="Ej: Blanco">
+            
+            <div class="buttons">
+                <button type="submit" class="btn btn-primary">Guardar y Habilitar QR</button>
+                <a href="/" class="btn btn-secondary">Volver al Inicio</a>
+            </div>
+        </form>
+    </div>
+
+    <footer>
+        <p><b>EAATE</b> &copy; 2026 — Sistema desarrollado para uso exclusivo de la institución. Todos los derechos reservados.</p>
+    </footer>
+
+    <script>
+        function mostrarAlerta(mensaje, tipo) {
+            const alerta = document.getElementById('alertaFlotante');
+            alerta.innerText = mensaje;
+            alerta.className = tipo === 'success' ? 'bg-success' : 'bg-error';
+            alerta.style.display = 'block';
+            setTimeout(() => { alerta.style.display = 'none'; }, 3000);
+        }
+
+        document.getElementById('formVehiculo').addEventListener('submit', function(e) {
+            e.preventDefault();
+            let formData = new FormData(this);
+
+            fetch('/guardar_vehiculo', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'ok') {
+                    mostrarAlerta('¡Vehículo registrado con éxito!', 'success');
+                    this.reset();
+                    setTimeout(() => { window.location.href = '/vehiculos'; }, 1500);
+                } else {
+                    mostrarAlerta('Error: ' + data.detail, 'error');
+                }
+            })
+            .catch(err => {
+                mostrarAlerta('Error de conexión con el servidor', 'error');
+            });
+        });
+    </script>
+</body>
+</html>

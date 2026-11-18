@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escáner de Acceso Vehicular</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #eef2f7; padding: 15px; margin: 0; }
+        h2 { color: #333; margin-bottom: 10px; font-size: 20px; }
+        #reader { width: 100%; max-width: 400px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .btn { padding: 10px 20px; font-size: 15px; margin: 3px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: 600; }
+        .btn-entrada { background: #28a745; }
+        .btn-salida { background: #dc3545; }
+        .active { outline: 3px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
+        
+        .form-group { width: 100%; max-width: 380px; margin: 10px auto; text-align: left; }
+        .form-group label { font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 3px; }
+        input, textarea { width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; box-sizing: border-box; }
+        
+        #modalExito {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .modal-content {
+            background: white; padding: 25px; border-radius: 12px; width: 85%; max-width: 340px;
+            text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,0.25); animation: popup 0.3s ease-in-out;
+        }
+        @keyframes popup {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h3 { margin-top: 0; font-size: 20px; }
+        .modal-content p { font-size: 14px; color: #555; margin: 15px 0 20px 0; white-space: pre-line; }
+        .btn-continuar { background: #1a73e8; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .logo-scanner { height: 40px; margin-bottom: 5px; object-fit: contain; }
+    </style>
+</head>
+<body>
+    <img src="/static/logo.png" alt="Logo" class="logo-scanner" onerror="this.style.display='none'">
+    <h2>📱 Control de Portería - EAATE</h2>
+    
+    <div>
+        <button id="btnEntrada" class="btn btn-entrada active" onclick="setTipo('ENTRADA')">ENTRADA</button>
+        <button id="btnSalida" class="btn btn-salida" onclick="setTipo('SALIDA')">SALIDA</button>
+    </div>
+
+    <div class="form-group">
+        <label>Motivo:</label>
+        <input type="text" id="motivo" value="Visita institucional" placeholder="Ej: Visita, Comisión">
+    </div>
+
+    <div class="form-group">
+        <label>Observaciones:</label>
+        <input type="text" id="observaciones" value="Ninguna" placeholder="Ej: Sin novedad">
+    </div>
+
+    <div id="reader"></div>
+
+    <div id="modalExito">
+        <div class="modal-content">
+            <h3 id="modalTitulo">¡Registrado!</h3>
+            <p id="modalMensaje">Procesando...</p>
+            <button class="btn-continuar" onclick="reiniciarEscanner()">Escanear Siguiente</button>
+        </div>
+    </div>
+
+    <script>
+        let modoActual = 'ENTRADA';
+        let html5QrcodeScanner = null;
+        let escaneandoActivo = true;
+
+        function setTipo(tipo) {
+            modoActual = tipo;
+            document.getElementById('btnEntrada').classList.toggle('active', tipo === 'ENTRADA');
+            document.getElementById('btnSalida').classList.toggle('active', tipo === 'SALIDA');
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            if (!escaneandoActivo) return;
+            escaneandoActivo = false;
+
+            html5QrcodeScanner.clear().then(() => {
+                let formData = new FormData();
+                formData.append('placa', decodedText);
+                formData.append('tipo', modoActual);
+                formData.append('motivo', document.getElementById('motivo').value);
+                formData.append('observaciones', document.getElementById('observaciones').value);
+
+                fetch('/api/escaneo', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const modal = document.getElementById('modalExito');
+                    const titulo = document.getElementById('modalTitulo');
+                    const mensaje = document.getElementById('modalMensaje');
+                    
+                    if(data.status === 'ok') {
+                        titulo.innerText = "¡Acceso Exitoso!";
+                        titulo.style.color = "#28a745";
+                    } else {
+                        titulo.innerText = "¡QR No Válido!";
+                        titulo.style.color = "#dc3545";
+                    }
+                    mensaje.innerText = data.message;
+                    modal.style.display = 'flex';
+                })
+                .catch(err => {
+                    const modal = document.getElementById('modalExito');
+                    document.getElementById('modalTitulo').innerText = "Error";
+                    document.getElementById('modalTitulo').style.color = "#dc3545";
+                    document.getElementById('modalMensaje').innerText = "Error de conexión con el servidor.";
+                    modal.style.display = 'flex';
+                });
+            }).catch(err => {
+                console.error("Error al pausar la cámara", err);
+            });
+        }
+
+        function reiniciarEscanner() {
+            document.getElementById('modalExito').style.display = 'none';
+            escaneandoActivo = true;
+            iniciarEscanner();
+        }
+
+        function iniciarEscanner() {
+            html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+            html5QrcodeScanner.render(onScanSuccess);
+        }
+
+        iniciarEscanner();
+    </script>
+</body>
+</html>

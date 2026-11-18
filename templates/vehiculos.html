@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Vehículos Registrados - EAATE</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 25px; background: #f0f2f5; color: #333; display: flex; flex-direction: column; min-height: 85vh; }
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); flex: 1; width: 100%; box-sizing: border-box; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f0f2f5; padding-bottom: 15px; flex-wrap: wrap; gap: 15px; }
+        .logo-title { display: flex; align-items: center; gap: 15px; }
+        .logo-img { height: 45px; width: auto; object-fit: contain; }
+        h2 { color: #1a73e8; margin: 0; font-size: 22px; }
+        
+        .btn { padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; border: none; display: inline-block; transition: background 0.2s; }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-qr { background: #17a2b8; color: white; }
+        .btn-edit { background: #ffc107; color: #333; }
+        .btn-edit:hover { background: #e0a800; }
+        .btn-delete { background: #dc3545; color: white; }
+        .btn-delete:hover { background: #c82333; }
+        
+        .search-container { margin-bottom: 20px; }
+        .search-input { width: 100%; padding: 12px 15px; font-size: 15px; border: 1px solid #ced4da; border-radius: 8px; box-sizing: border-box; outline: none; }
+        .search-input:focus { border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,0.15); }
+
+        .table-responsive { overflow-x: auto; max-height: 500px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+        th, td { border: 1px solid #e9ecef; padding: 10px 12px; text-align: left; }
+        th { background: #f8f9fa; color: #495057; font-weight: 600; position: sticky; top: 0; z-index: 2; }
+        tr:hover { background: #f8f9fa; }
+        .no-results { text-align: center; color: #777; padding: 30px; display: none; }
+
+        footer { text-align: center; padding: 20px; margin-top: auto; font-size: 13px; color: #666; border-top: 1px solid #ddd; }
+
+        /* Estilos de la Ventana Flotante (Modal de Edición) */
+        #modalEditar {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .modal-content {
+            background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25); text-align: left; max-height: 90vh; overflow-y: auto;
+        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-group { margin-bottom: 10px; }
+        .form-group label { font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 3px; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="logo-title">
+                <img src="/static/logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+                <h2>📋 Lista de Vehículos y Conductores Habilitados</h2>
+            </div>
+            <div>
+                <a href="/registrar" class="btn btn-primary">➕ Nuevo Registro</a>
+                <a href="/" class="btn btn-secondary">Volver al Inicio</a>
+            </div>
+        </header>
+
+        <div class="search-container">
+            <input type="text" id="inputBuscar" class="search-input" placeholder="🔍 Buscar por número de placa, conductor o unidad..." onkeyup="filtrarVehiculos()">
+        </div>
+
+        <div class="table-responsive">
+            <table id="tablaVehiculos">
+                <thead>
+                    <tr>
+                        <th>Placa</th>
+                        <th>Conductor</th>
+                        <th>Grado/Cargo</th>
+                        <th>Nro. Licencia</th>
+                        <th>Unidad</th>
+                        <th>Tipo</th>
+                        <th>Marca / Modelo / Color</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in vehiculos %}
+                    <tr class="fila-vehiculo">
+                        <td><b class="columna-placa">{{ v[6] }}</b></td>
+                        <td class="columna-conductor">{{ v[1] }}</td>
+                        <td>{{ v[2] or '' }}</td>
+                        <td>{{ v[3] or '' }}</td>
+                        <td class="columna-unidad">{{ v[4] or '' }}</td>
+                        <td>{{ v[5] or '' }}</td>
+                        <td>{{ v[7] or '' }} / {{ v[8] or '' }} / {{ v[9] or '' }}</td>
+                        <td>
+                            <a href="/generar_qr/{{ v[6] }}" target="_blank" class="btn btn-qr">QR</a>
+                            <button class="btn btn-edit" onclick="abrirEditar({{ v[0] }}, '{{ v[1] }}', '{{ v[2] }}', '{{ v[3] }}', '{{ v[4] }}', '{{ v[5] }}', '{{ v[6] }}', '{{ v[7] }}', '{{ v[8] }}', '{{ v[9] }}')">Editar</button>
+                            <button class="btn btn-delete" onclick="eliminarVehiculo({{ v[0] }}, '{{ v[6] }}')">Eliminar</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: #777; padding: 30px;">No hay vehículos registrados todavía.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="mensajeSinResultados" class="no-results">
+            No se encontró ningún vehículo que coincida con la búsqueda.
+        </div>
+    </div>
+
+    <!-- Modal para Editar -->
+    <div id="modalEditar">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: #1a73e8;">✏️ Editar Vehículo y Conductor</h3>
+            <form id="formEditar" onsubmit="guardarEdicion(event)">
+                <input type="hidden" id="edit_id">
+                
+                <div class="form-group">
+                    <label>Nombre del Conductor:</label>
+                    <input type="text" id="edit_nombre" required>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Grado o Cargo:</label>
+                        <input type="text" id="edit_grado">
+                    </div>
+                    <div class="form-group">
+                        <label>Nro. de Licencia:</label>
+                        <input type="text" id="edit_licencia">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Unidad de Destino:</label>
+                        <input type="text" id="edit_unidad">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Vehículo:</label>
+                        <select id="edit_tipo">
+                            <option value="Auto">Auto</option>
+                            <option value="Camioneta">Camioneta</option>
+                            <option value="Motocicleta">Motocicleta</option>
+                            <option value="Camión">Camión</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Número de Placa:</label>
+                    <input type="text" id="edit_placa" required style="text-transform: uppercase;">
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Marca:</label>
+                        <input type="text" id="edit_marca">
+                    </div>
+                    <div class="form-group">
+                        <label>Modelo:</label>
+                        <input type="text" id="edit_modelo">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Color:</label>
+                    <input type="text" id="edit_color">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 2;">Guardar Cambios</button>
+                    <button type="button" onclick="cerrarEditar()" class="btn btn-secondary" style="flex: 1;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        <p><b>EAATE</b> &copy; 2026 — Sistema desarrollado para uso exclusivo de la institución. Todos los derechos reservados.</p>
+    </footer>
+
+    <script>
+        function filtrarVehiculos() {
+            let input = document.getElementById('inputBuscar').value.toLowerCase();
+            let filas = document.getElementsByClassName('fila-vehiculo');
+            let hayVisibles = false;
+
+            for (let i = 0; i < filas.length; i++) {
+                let placa = filas[i].querySelector('.columna-placa').innerText.toLowerCase();
+                let conductor = filas[i].querySelector('.columna-conductor').innerText.toLowerCase();
+                let unidad = filas[i].querySelector('.columna-unidad').innerText.toLowerCase();
+
+                if (placa.includes(input) || conductor.includes(input) || unidad.includes(input)) {
+                    filas[i].style.display = "";
+                    hayVisibles = true;
+                } else {
+                    filas[i].style.display = "none";
+                }
+            }
+
+            let mensajeSinResultados = document.getElementById('mensajeSinResultados');
+            mensajeSinResultados.style.display = (!hayVisibles && filas.length > 0) ? "block" : "none";
+        }
+
+        function abrirEditar(id, nombre, grado, licencia, unidad, tipo, placa, marca, modelo, color) {
+            document.getElementById('edit_id').value = id;
+            document.getElementById('edit_nombre').value = nombre;
+            document.getElementById('edit_grado').value = grado;
+            document.getElementById('edit_licencia').value = licencia;
+            document.getElementById('edit_unidad').value = unidad;
+            document.getElementById('edit_tipo').value = tipo;
+            document.getElementById('edit_placa').value = placa;
+            document.getElementById('edit_marca').value = marca;
+            document.getElementById('edit_modelo').value = modelo;
+            document.getElementById('edit_color').value = color;
+
+            document.getElementById('modalEditar').style.display = 'flex';
+        }
+
+        function cerrarEditar() {
+            document.getElementById('modalEditar').style.display = 'none';
+        }
+
+        function guardarEdicion(e) {
+            e.preventDefault();
+            let id = document.getElementById('edit_id').value;
+            
+            let formData = new FormData();
+            formData.append('nombre_conductor', document.getElementById('edit_nombre').value);
+            formData.append('grado_cargo', document.getElementById('edit_grado').value);
+            formData.append('numero_licencia', document.getElementById('edit_licencia').value);
+            formData.append('unidad_destino', document.getElementById('edit_unidad').value);
+            formData.append('tipo_vehiculo', document.getElementById('edit_tipo').value);
+            formData.append('placa', document.getElementById('edit_placa').value);
+            formData.append('marca', document.getElementById('edit_marca').value);
+            formData.append('modelo', document.getElementById('edit_modelo').value);
+            formData.append('color', document.getElementById('edit_color').value);
+
+            fetch('/actualizar_vehiculo/' + id, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'ok') {
+                    alert('¡Vehículo actualizado con éxito!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.detail);
+                }
+            })
+            .catch(err => alert('Error de conexión con el servidor.'));
+        }
+
+        function eliminarVehiculo(id, placa) {
+            if(confirm(`¿Estás seguro de eliminar el vehículo con placa ${placa}? Se borrarán también sus registros de acceso asociados.`)) {
+                fetch('/eliminar_vehiculo/' + id)
+                .then(res => res.json())
+                .then(data => {
+                    if(data.status === 'ok') {
+                        alert('Vehículo eliminado correctamente.');
+                        location.reload();
+                    } else {
+                        alert('Error al eliminar: ' + data.detail);
+                    }
+                })
+                .catch(err => alert('Error de conexión con el servidor.'));
+            }
+        }
+    </script>
+</body>
+</html>
